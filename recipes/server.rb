@@ -26,18 +26,18 @@ agent_manager = "#{node['ossec']['user']['dir']}/bin/ossec-batch-manager.pl"
 
 ssh_hosts = Array.new
 
-search_string = "ossec:[* TO *] (NOT role:#{node['ossec']['server_role']})"
-search_string << " AND (chef_environment:#{node['ossec']['server_env']})" if node['ossec']['server_env']
-
-search(:node, search_string) do |n|
-
-  ssh_hosts << n['ipaddress'] if n['keys']
-
-  execute "#{agent_manager} -a --ip #{n['ipaddress']} -n #{n['fqdn'][0..31]}" do
-    not_if "grep '#{n['fqdn'][0..31]} #{n['ipaddress']}' #{node['ossec']['user']['dir']}/etc/client.keys"
-  end
-
-end
+#search_string = "ossec:[* TO *] (NOT role:#{node['ossec']['server_role']})"
+#search_string << " AND (chef_environment:#{node['ossec']['server_env']})" if node['ossec']['server_env']
+#
+#search(:node, search_string) do |n|
+#
+#  ssh_hosts << n['ipaddress'] if n['keys']
+#
+#  execute "#{agent_manager} -a --ip #{n['ipaddress']} -n #{n['fqdn'][0..31]}" do
+#    not_if "grep '#{n['fqdn'][0..31]} #{n['ipaddress']}' #{node['ossec']['user']['dir']}/etc/client.keys"
+#  end
+#
+#end
 
 template "/usr/local/bin/dist-ossec-keys.sh" do
   source "dist-ossec-keys.sh.erb"
@@ -48,13 +48,13 @@ template "/usr/local/bin/dist-ossec-keys.sh" do
   not_if { ssh_hosts.empty? }
 end
 
-dbag_name = node["ossec"]["data_bag"]["name"]
-dbag_item = node["ossec"]["data_bag"]["ssh"]
-if node["ossec"]["data_bag"]["encrypted"]
-  ossec_key = Chef::EncryptedDataBagItem.load(dbag_name, dbag_item)
-else
-  ossec_key = data_bag_item(dbag_name, dbag_item)
-end
+#dbag_name = node["ossec"]["data_bag"]["name"]
+#dbag_item = node["ossec"]["data_bag"]["ssh"]
+#if node["ossec"]["data_bag"]["encrypted"]
+#  ossec_key = Chef::EncryptedDataBagItem.load(dbag_name, dbag_item)
+#else
+#  ossec_key = data_bag_item(dbag_name, dbag_item)
+#end
 
 directory "#{node['ossec']['user']['dir']}/.ssh" do
   owner "root"
@@ -67,7 +67,6 @@ template "#{node['ossec']['user']['dir']}/.ssh/id_rsa" do
   owner "root"
   group "ossec"
   mode 0600
-  variables(:key => ossec_key['privkey'])
 end
 
 cron "distribute-ossec-keys" do
