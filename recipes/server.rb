@@ -24,53 +24,25 @@ include_recipe "ossec"
 
 agent_manager = "#{node['ossec']['user']['dir']}/bin/ossec-batch-manager.pl"
 
-ssh_hosts = Array.new
-
-#search_string = "ossec:[* TO *] (NOT role:#{node['ossec']['server_role']})"
-#search_string << " AND (chef_environment:#{node['ossec']['server_env']})" if node['ossec']['server_env']
-#
-#search(:node, search_string) do |n|
-#
-#  ssh_hosts << n['ipaddress'] if n['keys']
-#
-#  execute "#{agent_manager} -a --ip #{n['ipaddress']} -n #{n['fqdn'][0..31]}" do
-#    not_if "grep '#{n['fqdn'][0..31]} #{n['ipaddress']}' #{node['ossec']['user']['dir']}/etc/client.keys"
-#  end
-#
-#end
-
-template "/usr/local/bin/dist-ossec-keys.sh" do
-  source "dist-ossec-keys.sh.erb"
-  owner "root"
-  group "root"
-  mode 0755
-  variables(:ssh_hosts => ssh_hosts)
-  not_if { ssh_hosts.empty? }
+file "#{node['ossec']['user']['dir']}/etc/client.keys" do
+  owner 'root'
+  group 'ossec'
+  mode 0644
 end
 
-#dbag_name = node["ossec"]["data_bag"]["name"]
-#dbag_item = node["ossec"]["data_bag"]["ssh"]
-#if node["ossec"]["data_bag"]["encrypted"]
-#  ossec_key = Chef::EncryptedDataBagItem.load(dbag_name, dbag_item)
-#else
-#  ossec_key = data_bag_item(dbag_name, dbag_item)
-#end
-
-directory "#{node['ossec']['user']['dir']}/.ssh" do
-  owner "root"
-  group "ossec"
-  mode 0750
+bash 'configure authd' do
+    code <<-EOF
+            openssl genrsa -out /var/ossec/etc/sslmanager.key 2048
+            openssl req -new -x509 -key /var/ossec/etc/sslmanager.key -out /var/ossec/etc/sslmanager.cert -days 365 -batch
+          EOF
 end
 
-template "#{node['ossec']['user']['dir']}/.ssh/id_rsa" do
-  source "ssh_key.erb"
-  owner "root"
-  group "ossec"
-  mode 0600
+service "ossec" do
+  action :restart
 end
 
-cron "distribute-ossec-keys" do
-  minute "0"
-  command "/usr/local/bin/dist-ossec-keys.sh"
-  only_if { ::File.exists?("#{node['ossec']['user']['dir']}/etc/client.keys") }
+bash 'start authd' do
+  code <<-EOF
+    /var/ossec/bin/ossec-authd -p 1515 >/dev/null 2>&1 &
+  EOF
 end
