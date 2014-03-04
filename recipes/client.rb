@@ -40,3 +40,7 @@ bash 'register instance' do
     /var/ossec/bin/agent-auth -m #{node['ossec']['user']['agent_server_ip']} -p 1515
   EOF
 end
+
+service "ossec" do
+    action :restart
+end
